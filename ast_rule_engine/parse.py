@@ -6,7 +6,9 @@ from typing import Callable, Dict
 from ast_rule_engine.draft import (
     BoxTypeRule,
     BoxValueRule,
+    ExistsRule,
     FFIRule,
+    ForallRule,
     IsRule,
     Match,
     NotRule,
@@ -77,6 +79,14 @@ def parse_rule(
                 parse_rule(raw_rule, path + (i,), look_up_rule, get_ffi)
                 for i, raw_rule in enumerate(seq)
             ])
+
+        elif ":forall" in raw_rule:
+            path += (":forall",)
+            return ForallRule(parse_rule(raw_rule[":forall"], path, look_up_rule, get_ffi))
+
+        elif ":exists" in raw_rule:
+            path += (":exists",)
+            return ExistsRule(parse_rule(raw_rule[":exists"], path, look_up_rule, get_ffi))
 
         elif ":or" in raw_rule:
             variants = raw_rule[":or"]

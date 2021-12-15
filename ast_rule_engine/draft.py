@@ -176,6 +176,43 @@ class TupleRule(Pattern):
         for i, (subterm, subpattern) in enumerate(zip(term, self.patterns)):
             match = subpattern.match(subterm)
             if isinstance(match, str):
-                return "At pattern {0}: {1}".format(i, match)
+                return "At pattern #{0}: {1}".format(i, match)
             result.update(match)
         return result
+
+
+@dataclass(frozen=True)
+class ForallRule(Pattern):
+    predicate: Pattern
+
+    def match(self, term: Term, /) -> Match:
+        if not isinstance(term, list):
+            return "Not a list"
+
+        result = {}
+        for i, subterm in enumerate(term):
+            match  = self.predicate.match(subterm)
+            if isinstance(match, str):
+                return "At item #{0}: {1}".format(i, match)
+            result.update(match)
+        return result
+
+
+@dataclass(frozen=True)
+class ExistsRule(Pattern):
+    predicate: Pattern
+
+    def match(self, term: Term, /) -> Match:
+        if not isinstance(term, list):
+            return "Not a list"
+
+        if not term:
+            return "Empty list"
+
+        errors = []
+        for subterm in term:
+            match  = self.predicate.match(subterm)
+            if not isinstance(match, str):
+                return match
+            errors.append(match)
+        return "; ".join(errors)

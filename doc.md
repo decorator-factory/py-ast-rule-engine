@@ -13,6 +13,8 @@ Rule
     | Or-Rule
     | And-Rule
     | Not-Rule
+    | Forall-Rule
+    | Exists-Rule
     | Ref-Rule
     | Var-Rule
     | Box-Rule
@@ -27,6 +29,10 @@ Or-Rule = { ":or": List[Rule] }
 And-Rule = { ":and": List[Rule] }
 
 Not-Rule = { ":not": Rule } | "not(" . ($rule < Rule) . ")"
+
+Forall-Rule = { ":forall": Rule }
+
+Exists-Rule = { ":exists": Rule }
 
 Ref-Rule = "~" . $rule-name
 
