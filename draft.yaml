@@ -1,19 +1,114 @@
 stmt-rules:
   truthy-value:
-    :or:
-      - =True
-      - =...
-      - :and: [=int, not(=0)]
+    is(Constant):
+      value:
+        :or:
+          - =True
+          - =...
+          - :and: [=int, not(=0)]
+          - :and: [=str, not(="")]
 
   f-string:
     is(JoinedStr)
 
-  ULA001: # `assert True`
+  pure-builtin:
+    :or: [="abs", ="aiter", ="all", ="any", ="ascii", ="bin", ="bool",
+          ="bytearray", ="bytes", ="callable", ="chr", ="classmethod",
+          ="compile", ="complex", ="dict", ="dir", ="divmod", ="enumerate",
+          ="filter", ="float", ="format", ="frozenset", ="getattr",
+          ="hasattr", ="hash", ="help", ="hex", ="id",
+          ="int", ="isinstance", ="issubclass", ="iter",
+          ="len", ="list", ="map", ="max", ="memoryview", ="min",
+          ="oct", ="ord", ="pow", ="property", ="range", ="repr",
+          ="reversed", ="round", ="set", ="slice", ="sorted", ="staticmethod",
+          ="str", ="sum", ="tuple", ="type", ="zip"]
+
+  const-computation:
+    :or:
+      - is(Constant)
+      - is(Starred):
+          value:
+            ~const-computation
+      - :and:
+          - :or: [is(Tuple), is(List), is(Set)]
+          - is(AST):
+              value:
+                :forall: ~const-computation
+      - is(Dict):
+          keys:
+            :forall: ~const-computation
+          values:
+            :forall: ~const-computation
+      - is(Compare):
+          left:
+            ~const-computation
+          comparators:
+            :forall: ~const-computation
+      - is(IfExp):
+          test: ~const-computation
+          body: ~const-computation
+          orelse: ~const-computation
+      - is(BinOp):
+          left: ~const-computation
+          right: ~const-computation
+      - is(Call):
+          func:
+            is(Name):
+              id:
+                ~pure-builtin
+          args:
+            :forall: ~const-computation
+          keywords:
+            :forall:
+              is(keyword):
+                value:
+                  ~const-computation
+
+  ULA001:
     is(Assert):
       test:
-        is(Const):
-          value:
-            ~truthy-value
+        ~truthy-value
 
-  ULA003: # `assert True`
-    ~f-string
+  ULA002:
+    is(Assert):
+      test:
+        is(Constant):
+          value:
+            =0
+
+  ULA003:
+    is(Assert):
+      test:
+        is(Constant):
+          value:
+            =None
+
+  ULA004:
+    is(Assert):
+      test:
+        is(Call):
+          func:
+            is(Attribute):
+              value:
+                is(Constant):
+                  value:
+                    =str
+              attr:
+                ="format"
+
+  ULA005:
+    is(Assert):
+      test:
+        ~f-string
+
+  ULA006:
+    is(Assert):
+      test:
+        :and:
+          - not(is(Constant))
+          - ~const-computation
+
+
+
+
+
