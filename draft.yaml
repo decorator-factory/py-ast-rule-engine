@@ -1,0 +1,19 @@
+stmt-rules:
+  truthy-value:
+    :or:
+      - =True
+      - =...
+      - :and: [=int, not(=0)]
+
+  f-string:
+    is(JoinedStr)
+
+  ULA001: # `assert True`
+    is(Assert):
+      test:
+        is(Const):
+          value:
+            ~truthy-value
+
+  ULA003: # `assert True`
+    ~f-string
