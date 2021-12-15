@@ -32,8 +32,10 @@ Ref-Rule = "~" . $rule-name
 
 Var-Rule = "$" . $name
 
-Box-Rule = "=" . Box-Value
+Box-Rule = Inline-Box-Rule | Tuple-Box-Rule
     where (
+        Tuple-Box-Rule = {"=": List[Rule]} | {"=": List[Rule] + ["..."]}
+        Inline-Box-Rule = "=" . Box-Value
         Box-Value
             = "True"
             | "False"

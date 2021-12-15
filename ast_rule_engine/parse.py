@@ -15,6 +15,7 @@ from ast_rule_engine.draft import (
     Pattern,
     RefRule,
     Term,
+    TupleRule,
     VarRule,
 )
 
@@ -64,8 +65,18 @@ def parse_rule(
         if raw_rule == {}:
             raise ParseError(
                 path,
-                "Expected one of ':and', ':or', ':not', 'is(...)'. Got empty dict"
+                "Expected one of ':and', ':or', ':not', 'is(...)', '='. Got empty dict"
             )
+
+        elif "=" in raw_rule:
+            seq = raw_rule["="]
+            path += ("=",)
+            if not isinstance(seq, list):
+                raise ParseError(path, "Expected a list, got {0!r}".format(seq))
+            return TupleRule([
+                parse_rule(raw_rule, path + (i,), look_up_rule, get_ffi)
+                for i, raw_rule in enumerate(seq)
+            ])
 
         elif ":or" in raw_rule:
             variants = raw_rule[":or"]
@@ -119,7 +130,7 @@ def parse_rule(
         else:
             raise ParseError(
                 path,
-                "Expected one of ':and', ':or', ':not', 'is(...)'."
+                "Expected one of ':and', ':or', ':not', 'is(...)', '='."
                 "Got keys: {0!r}".format(set(raw_rule))
             )
 

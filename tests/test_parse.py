@@ -1,6 +1,6 @@
 from typing import Any, Callable
 import yaml
-from ast_rule_engine.draft import AndRule, BoxTypeRule, BoxValueRule, IsRule, NotRule, OrRule, RefRule
+from ast_rule_engine.draft import AndRule, BoxTypeRule, BoxValueRule, IsRule, NotRule, OrRule, RefRule, TupleRule
 from ast_rule_engine.parse import parse
 
 
@@ -30,9 +30,41 @@ stmt-rules:
   ULA001: # `assert True`
     is(Assert):
       test:
-        is(Const):
+        is(Constant):
           value:
             ~truthy-value
+
+  equals-with-None:
+    :or:
+      - is(Compare):
+          ops:
+            =: [is(Eq)]
+          left:
+            is(Constant):
+              value: =None
+      - is(Compare):
+          ops:
+            =: [is(Eq)]
+          right:
+            =:
+              - is(Constant):
+                  value: =None
+
+  equals-with-None-2:
+    :and:
+      - is(Compare):
+          ops:
+            =: [is(Eq)]
+      - :or:
+        - is(Compare):
+            left:
+              is(Constant):
+                value: =None
+        - is(Compare):
+            right:
+              =:
+                - is(Constant):
+                    value: =None
 """)
 
 
@@ -56,7 +88,7 @@ def test_ula_001():
         "Assert",
         {
             "test": IsRule(
-                "Const",
+                "Constant",
                 {
                     "value": RefRule(
                         "truthy-value",
@@ -66,3 +98,43 @@ def test_ula_001():
             )
         }
     )
+
+
+def test_equals_with_none_basic():
+    parsed = parse(SOURCE, {}.__getitem__)
+    assert parsed["equals-with-None"] == OrRule([
+        IsRule("Compare", {
+            "ops": TupleRule([
+                IsRule("Eq", {}),
+            ]),
+            "left": IsRule("Constant", {"value": BoxValueRule(None)}),
+        }),
+        IsRule("Compare", {
+            "ops": TupleRule([
+                IsRule("Eq", {}),
+            ]),
+            "right": TupleRule([
+                IsRule("Constant", {"value": BoxValueRule(None)}),
+            ]),
+        }),
+    ])
+
+
+def test_equals_with_none_DRY():
+    parsed = parse(SOURCE, {}.__getitem__)
+    assert parsed["equals-with-None-2"] == AndRule([
+        IsRule("Compare", {
+            "ops": TupleRule([
+                IsRule("Eq", {}),
+            ]),
+        }),
+        OrRule([
+            IsRule("Compare", {
+                "left": IsRule("Constant", {"value": BoxValueRule(None)}),
+            }),
+            IsRule("Compare", {
+                "right": TupleRule([IsRule("Constant", {"value": BoxValueRule(None)})]),
+            }),
+        ]),
+    ])
+

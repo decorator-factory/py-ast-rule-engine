@@ -1,7 +1,7 @@
 from abc import ABC
 import ast
 from dataclasses import dataclass
-from typing import Callable, Dict, Sequence, Union
+from typing import Callable, Dict, List, Sequence, Union
 
 
 @dataclass
@@ -9,7 +9,7 @@ class Box:
     value: object
 
 
-Term = Union[ast.AST, Sequence["Term"], Box]
+Term = Union[ast.AST, List["Term"], Box]
 Captures = Dict[str, Term]
 Match = Union[Captures, str]
 
@@ -156,3 +156,26 @@ class FFIRule(Pattern):
     def match(self, term: Term, /) -> Match:
         fn = self.get_function(self.name)
         return fn(term)
+
+
+@dataclass(frozen=True)
+class TupleRule(Pattern):
+    patterns: Sequence[Pattern]
+
+    def match(self, term: Term, /) -> Match:
+        if not isinstance(term, list):
+            return "Not a list"
+
+        if len(term) != len(self.patterns):
+            return "Pattern is {0} elements long, got {1}".format(
+                len(self.patterns),
+                len(term),
+            )
+
+        result = {}
+        for i, (subterm, subpattern) in enumerate(zip(term, self.patterns)):
+            match = subpattern.match(subterm)
+            if isinstance(match, str):
+                return "At pattern {0}: {1}".format(i, match)
+            result.update(match)
+        return result
