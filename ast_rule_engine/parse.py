@@ -45,7 +45,7 @@ def parse(source: object, get_ffi: GetFFI) -> Dict[str, Pattern]:
         if not isinstance(rule_name, str):
             raise ParseError((rule_name,), "Expected key to be a string")
 
-    def look_up_rule(name: str, /) -> Pattern:
+    def look_up_rule(name: str) -> Pattern:
         return patterns[name]
 
     patterns = {}
@@ -195,4 +195,3 @@ def parse_rule(
 
     else:
         raise ParseError(path, "I don't understand this at all: {0!r}".format(raw_rule))
-

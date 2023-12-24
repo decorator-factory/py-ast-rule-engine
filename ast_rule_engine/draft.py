@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from abc import ABC
 import ast
 from dataclasses import dataclass
@@ -18,13 +20,13 @@ def to_term(obj: object) -> Term:
     if isinstance(obj, ast.AST):
         return obj
     elif isinstance(obj, (list, tuple)):
-        return [to_term(x) for x in obj]
+        return [to_term(x) for x in obj]  # pyright: ignore[reportUnknownArgumentType,reportUnknownVariableType]
     else:
         return Box(obj)
 
 
 class Pattern(ABC):
-    def match(self, term: Term, /) -> Match:
+    def match(self, term: Term) -> Match:
         raise NotImplementedError
 
 
@@ -33,7 +35,7 @@ class IsRule(Pattern):
     class_name: str
     attribute_rules: Dict[str, Pattern]
 
-    def match(self, term: Term, /) -> Match:
+    def match(self, term: Term) -> Match:
         if not isinstance(term, ast.AST):
             return "Cannot match a {0}".format(self.class_name)
 
@@ -41,7 +43,7 @@ class IsRule(Pattern):
         if not isinstance(term, node_cls):
             return "{0} is not a {1}".format(type(term).__name__, self.class_name)
 
-        captures = {}
+        captures: Captures = {}
 
         for name, pattern in self.attribute_rules.items():
             attr = to_term(getattr(term, name))
@@ -57,8 +59,8 @@ class IsRule(Pattern):
 class OrRule(Pattern):
     patterns: Sequence[Pattern]
 
-    def match(self, term: Term, /) -> Match:
-        failed = []
+    def match(self, term: Term) -> Match:
+        failed: List[str] = []
         for pattern in self.patterns:
             match = pattern.match(term)
             if isinstance(match, str):
@@ -70,10 +72,10 @@ class OrRule(Pattern):
 
 @dataclass(frozen=True)
 class AndRule(Pattern):
-    patterns: Sequence
+    patterns: Sequence[Pattern]
 
-    def match(self, term: Term, /) -> Match:
-        result = {}
+    def match(self, term: Term) -> Match:
+        result: Match = {}
         for pattern in self.patterns:
             match = pattern.match(term)
             if isinstance(match, str):
@@ -86,7 +88,7 @@ class AndRule(Pattern):
 class NotRule(Pattern):
     wrapped: Pattern
 
-    def match(self, term: Term, /) -> Match:
+    def match(self, term: Term) -> Match:
         submatch = self.wrapped.match(term)
         if not isinstance(submatch, str) :
             return "Shouldn't have matched"
@@ -98,7 +100,7 @@ class RefRule(Pattern):
     name: str
     get_pattern: Callable[[str], Pattern]
 
-    def match(self, term: Term, /) -> Match:
+    def match(self, term: Term) -> Match:
         pattern = self.get_pattern(self.name)
         return pattern.match(term)
 
@@ -107,7 +109,7 @@ class RefRule(Pattern):
 class VarRule(Pattern):
     name: str
 
-    def match(self, term: Term, /) -> Match:
+    def match(self, term: Term) -> Match:
         return {self.name: term}
 
 
@@ -115,7 +117,7 @@ class VarRule(Pattern):
 class BoxTypeRule(Pattern):
     cls: type
 
-    def match(self, term: Term, /) -> Match:
+    def match(self, term: Term) -> Match:
         if not isinstance(term, Box):
             return "Not a box"
 
@@ -132,7 +134,7 @@ class BoxTypeRule(Pattern):
 class BoxValueRule(Pattern):
     value: object
 
-    def match(self, term: Term, /) -> Match:
+    def match(self, term: Term) -> Match:
         if not isinstance(term, Box):
             return "Not a box"
 
@@ -153,7 +155,7 @@ class FFIRule(Pattern):
     name: str
     get_function: Callable[[str], Callable[[Term], Match]]
 
-    def match(self, term: Term, /) -> Match:
+    def match(self, term: Term) -> Match:
         fn = self.get_function(self.name)
         return fn(term)
 
@@ -162,7 +164,7 @@ class FFIRule(Pattern):
 class TupleRule(Pattern):
     patterns: Sequence[Pattern]
 
-    def match(self, term: Term, /) -> Match:
+    def match(self, term: Term) -> Match:
         if not isinstance(term, list):
             return "Not a list"
 
@@ -172,7 +174,7 @@ class TupleRule(Pattern):
                 len(term),
             )
 
-        result = {}
+        result: Match = {}
         for i, (subterm, subpattern) in enumerate(zip(term, self.patterns)):
             match = subpattern.match(subterm)
             if isinstance(match, str):
@@ -185,11 +187,11 @@ class TupleRule(Pattern):
 class ForallRule(Pattern):
     predicate: Pattern
 
-    def match(self, term: Term, /) -> Match:
+    def match(self, term: Term) -> Match:
         if not isinstance(term, list):
             return "Not a list"
 
-        result = {}
+        result: Match = {}
         for i, subterm in enumerate(term):
             match  = self.predicate.match(subterm)
             if isinstance(match, str):
@@ -202,14 +204,14 @@ class ForallRule(Pattern):
 class ExistsRule(Pattern):
     predicate: Pattern
 
-    def match(self, term: Term, /) -> Match:
+    def match(self, term: Term) -> Match:
         if not isinstance(term, list):
             return "Not a list"
 
         if not term:
             return "Empty list"
 
-        errors = []
+        errors: List[str] = []
         for subterm in term:
             match  = self.predicate.match(subterm)
             if not isinstance(match, str):
