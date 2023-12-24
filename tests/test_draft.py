@@ -1,6 +1,6 @@
 import ast
 from ast_rule_engine.draft import IsRule
-from tests.patch_const import LegacyConstantRewriter
+from ast_rule_engine.patch_const import LegacyConstantRewriter
 
 
 def parse(code: str) -> ast.Module:
@@ -10,15 +10,7 @@ def parse(code: str) -> ast.Module:
 
 
 def test_is_rule():
-    pat = IsRule(
-        "Assert",
-        {
-            "test": IsRule(
-                "Constant",
-                {}
-            )
-        }
-    )
+    pat = IsRule("Assert", {"test": IsRule("Constant", {})})
     stmt = parse("assert 42").body[0]
 
     assert pat.match(stmt) == {}

@@ -107,8 +107,3 @@ stmt-rules:
         :and:
           - not(is(Constant))
           - ~const-computation
-
-
-
-
-

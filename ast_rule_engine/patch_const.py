@@ -6,6 +6,7 @@ class LegacyConstantRewriter(ast.NodeTransformer):
     Transformer that replaces deprecated constant nodes (Str, Num,
     NameConstant, Ellipsis) with Constant.
     """
+
     def visit_Str(self, node: "ast.Str") -> ast.AST:
         const_node = ast.Constant(value=node.s)
         ast.copy_location(const_node, node)

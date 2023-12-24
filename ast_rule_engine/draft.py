@@ -30,6 +30,10 @@ class Pattern(ABC):
         raise NotImplementedError
 
 
+class _Missing:
+    pass
+
+
 @dataclass(frozen=True)
 class IsRule(Pattern):
     class_name: str
@@ -39,14 +43,14 @@ class IsRule(Pattern):
         if not isinstance(term, ast.AST):
             return "Cannot match a {0}".format(self.class_name)
 
-        node_cls = getattr(ast, self.class_name)
+        node_cls = getattr(ast, self.class_name, _Missing)
         if not isinstance(term, node_cls):
             return "{0} is not a {1}".format(type(term).__name__, self.class_name)
 
         captures: Captures = {}
 
         for name, pattern in self.attribute_rules.items():
-            attr = to_term(getattr(term, name))
+            attr = to_term(getattr(term, name, None))
             submatch = pattern.match(attr)
             if isinstance(submatch, str):
                 return "In attr {0}: {1}".format(attr, submatch)
@@ -90,7 +94,7 @@ class NotRule(Pattern):
 
     def match(self, term: Term) -> Match:
         submatch = self.wrapped.match(term)
-        if not isinstance(submatch, str) :
+        if not isinstance(submatch, str):
             return "Shouldn't have matched"
         return {}
 
@@ -121,7 +125,7 @@ class BoxTypeRule(Pattern):
         if not isinstance(term, Box):
             return "Not a box"
 
-        if not isinstance(term.value , self.cls):
+        if not isinstance(term.value, self.cls):
             return "Expected a {0}, got {1}".format(
                 self.cls.__name__,
                 type(term.value).__name__,
@@ -138,7 +142,7 @@ class BoxValueRule(Pattern):
         if not isinstance(term, Box):
             return "Not a box"
 
-        if not isinstance(term.value , type(self.value)):
+        if not isinstance(term.value, type(self.value)):
             return "Expected a {0}, got {1}".format(
                 type(self.value).__name__,
                 type(term.value).__name__,
@@ -193,7 +197,7 @@ class ForallRule(Pattern):
 
         result: Match = {}
         for i, subterm in enumerate(term):
-            match  = self.predicate.match(subterm)
+            match = self.predicate.match(subterm)
             if isinstance(match, str):
                 return "At item #{0}: {1}".format(i, match)
             result.update(match)
@@ -213,7 +217,7 @@ class ExistsRule(Pattern):
 
         errors: List[str] = []
         for subterm in term:
-            match  = self.predicate.match(subterm)
+            match = self.predicate.match(subterm)
             if not isinstance(match, str):
                 return match
             errors.append(match)

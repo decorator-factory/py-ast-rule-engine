@@ -1,7 +1,7 @@
 import re
 import ast
 from dataclasses import dataclass
-from typing import Callable, Dict
+from typing import Callable, Mapping
 
 from ast_rule_engine.draft import (
     BoxTypeRule,
@@ -32,7 +32,7 @@ GetPattern = Callable[[str], Pattern]
 GetFFI = Callable[[str], Callable[[Term], Match]]
 
 
-def parse(source: object, get_ffi: GetFFI) -> Dict[str, Pattern]:
+def parse(source: object, get_ffi: GetFFI) -> Mapping[str, Pattern]:
     if not isinstance(source, dict):
         raise ParseError((), "Expected a dict")
 
@@ -54,7 +54,7 @@ def parse(source: object, get_ffi: GetFFI) -> Dict[str, Pattern]:
         pattern = parse_rule(raw_rule, (rule_name,), look_up_rule, get_ffi)
         patterns[rule_name] = pattern
 
-    return patterns
+    return dict(patterns)
 
 
 def parse_rule(
@@ -67,7 +67,7 @@ def parse_rule(
         if raw_rule == {}:
             raise ParseError(
                 path,
-                "Expected one of ':and', ':or', ':not', 'is(...)', '='. Got empty dict"
+                "Expected one of ':and', ':or', ':not', 'is(...)', '='. Got empty dict",
             )
 
         elif "=" in raw_rule:
@@ -75,45 +75,58 @@ def parse_rule(
             path += ("=",)
             if not isinstance(seq, list):
                 raise ParseError(path, "Expected a list, got {0!r}".format(seq))
-            return TupleRule([
-                parse_rule(raw_rule, path + (i,), look_up_rule, get_ffi)
-                for i, raw_rule in enumerate(seq)
-            ])
+            return TupleRule(
+                [
+                    parse_rule(raw_rule, path + (i,), look_up_rule, get_ffi)
+                    for i, raw_rule in enumerate(seq)
+                ]
+            )
 
         elif ":forall" in raw_rule:
             path += (":forall",)
-            return ForallRule(parse_rule(raw_rule[":forall"], path, look_up_rule, get_ffi))
+            return ForallRule(
+                parse_rule(raw_rule[":forall"], path, look_up_rule, get_ffi)
+            )
 
         elif ":exists" in raw_rule:
             path += (":exists",)
-            return ExistsRule(parse_rule(raw_rule[":exists"], path, look_up_rule, get_ffi))
+            return ExistsRule(
+                parse_rule(raw_rule[":exists"], path, look_up_rule, get_ffi)
+            )
 
         elif ":or" in raw_rule:
             variants = raw_rule[":or"]
             path += (":or",)
             if not isinstance(variants, list):
                 raise ParseError(path, "Expected a list")
-            return OrRule([
-                parse_rule(raw_rule, path + (i,), look_up_rule, get_ffi)
-                for i, raw_rule in enumerate(variants)
-            ])
+            return OrRule(
+                [
+                    parse_rule(raw_rule, path + (i,), look_up_rule, get_ffi)
+                    for i, raw_rule in enumerate(variants)
+                ]
+            )
 
         elif ":and" in raw_rule:
             branches = raw_rule[":and"]
             path += (":and",)
             if not isinstance(branches, list):
                 raise ParseError(path, "Expected a list")
-            return AndRule([
-                parse_rule(raw_rule, path + (i,), look_up_rule, get_ffi)
-                for i, raw_rule in enumerate(branches)
-            ])
+            return AndRule(
+                [
+                    parse_rule(raw_rule, path + (i,), look_up_rule, get_ffi)
+                    for i, raw_rule in enumerate(branches)
+                ]
+            )
 
         elif ":not" in raw_rule:
             raw_attrs = raw_rule[":not"]
             path += (":not",)
             return NotRule(parse_rule(raw_attrs, path, look_up_rule, get_ffi))
 
-        elif all(isinstance(key, str) and key.startswith("is(") and key.endswith(")") for key in raw_rule.keys()):
+        elif all(
+            isinstance(key, str) and key.startswith("is(") and key.endswith(")")
+            for key in raw_rule.keys()
+        ):
             patterns = []
 
             for key, raw_attrs in raw_rule.items():
@@ -126,7 +139,9 @@ def parse_rule(
                     if not isinstance(attr, str):
                         raise ParseError(path + (key, attr), "Expected a string key")
                 attr_rules = {
-                    attr: parse_rule(raw_subrule, path + (key, attr), look_up_rule, get_ffi)
+                    attr: parse_rule(
+                        raw_subrule, path + (key, attr), look_up_rule, get_ffi
+                    )
                     for attr, raw_subrule in raw_attrs.items()
                 }
                 patterns.append(IsRule(key[3:-1], attr_rules))
@@ -136,12 +151,11 @@ def parse_rule(
 
             return OrRule(patterns)
 
-
         else:
             raise ParseError(
                 path,
                 "Expected one of ':and', ':or', ':not', 'is(...)', '='."
-                "Got keys: {0!r}".format(set(raw_rule))
+                "Got keys: {0!r}".format(set(raw_rule)),
             )
 
     elif isinstance(raw_rule, str):
